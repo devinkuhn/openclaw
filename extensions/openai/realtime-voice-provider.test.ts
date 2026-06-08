@@ -79,8 +79,8 @@ vi.mock("ws", () => ({
   default: FakeWebSocket,
 }));
 
-vi.mock("openclaw/plugin-sdk/ssrf-runtime", () => ({
-  fetchWithSsrFGuard: fetchWithSsrFGuardMock,
+vi.mock("openclaw/plugin-sdk/fetch-runtime", () => ({
+  fetchWithResponseRelease: fetchWithSsrFGuardMock,
 }));
 
 vi.mock("openclaw/plugin-sdk/provider-auth", () => ({
@@ -308,7 +308,6 @@ describe("buildOpenAIRealtimeVoiceProvider", () => {
     const request = requireFetchRequest();
     expectRecordFields(request, "fetch request", {
       url: "https://api.openai.com/v1/realtime/client_secrets",
-      auditContext: "openai-realtime-bridge-session",
     });
     expectRecordFields(requireFetchInit(), "fetch init", { method: "POST" });
     expectRecordFields(requireFetchHeaders(), "fetch headers", {

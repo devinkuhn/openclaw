@@ -826,7 +826,6 @@ class OpenAIRealtimeVoiceBridge implements RealtimeVoiceBridge {
     const cfg = this.config;
     const clientSecret = await createOpenAIRealtimeClientSecret({
       authToken,
-      auditContext: "openai-realtime-bridge-session",
       session: {
         type: "realtime",
         model,
@@ -1413,7 +1412,6 @@ async function createOpenAIRealtimeBrowserSession(
 
   const clientSecret = await createOpenAIRealtimeClientSecret({
     authToken: auth.value,
-    auditContext: "openai-realtime-browser-session",
     session,
   });
   const offerHeaders = resolveOpenAIRealtimeBrowserOfferHeaders();

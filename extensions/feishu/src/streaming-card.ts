@@ -3,12 +3,12 @@
  */
 
 import type { Client } from "@larksuiteoapi/node-sdk";
+import { fetchWithResponseRelease } from "openclaw/plugin-sdk/fetch-runtime";
 import {
   asDateTimestampMs,
   resolveDateTimestampMs,
   resolveExpiresAtMsFromDurationSeconds,
 } from "openclaw/plugin-sdk/number-runtime";
-import { fetchWithSsrFGuard } from "openclaw/plugin-sdk/ssrf-runtime";
 import { getFeishuUserAgent } from "./client.js";
 import { resolveFeishuCardTemplate, type CardHeaderConfig } from "./send.js";
 import type { FeishuDomain } from "./types.js";
@@ -76,20 +76,6 @@ function resolveApiBase(domain?: FeishuDomain): string {
   return "https://open.feishu.cn/open-apis";
 }
 
-function resolveAllowedHostnames(domain?: FeishuDomain): string[] {
-  if (domain === "lark") {
-    return ["open.larksuite.com"];
-  }
-  if (domain && domain !== "feishu" && domain.startsWith("http")) {
-    try {
-      return [new URL(domain).hostname];
-    } catch {
-      return [];
-    }
-  }
-  return ["open.feishu.cn"];
-}
-
 async function getToken(creds: Credentials): Promise<string> {
   const key = `${creds.domain ?? "feishu"}|${creds.appId}`;
   const cached = tokenCache.get(key);
@@ -101,15 +87,13 @@ async function getToken(creds: Credentials): Promise<string> {
     return cached.token;
   }
 
-  const { response, release } = await fetchWithSsrFGuard({
+  const { response, release } = await fetchWithResponseRelease({
     url: `${resolveApiBase(creds.domain)}/auth/v3/tenant_access_token/internal`,
     init: {
       method: "POST",
       headers: { "Content-Type": "application/json", "User-Agent": getFeishuUserAgent() },
       body: JSON.stringify({ app_id: creds.appId, app_secret: creds.appSecret }),
     },
-    policy: { allowedHostnames: resolveAllowedHostnames(creds.domain) },
-    auditContext: "feishu.streaming-card.token",
   });
   if (!response.ok) {
     await release();
@@ -257,7 +241,7 @@ export class FeishuStreamingSession {
     }
 
     // Create card entity
-    const { response: createRes, release: releaseCreate } = await fetchWithSsrFGuard({
+    const { response: createRes, release: releaseCreate } = await fetchWithResponseRelease({
       url: `${apiBase}/cardkit/v1/cards`,
       init: {
         method: "POST",
@@ -268,8 +252,6 @@ export class FeishuStreamingSession {
         },
         body: JSON.stringify({ type: "card_json", data: JSON.stringify(cardJson) }),
       },
-      policy: { allowedHostnames: resolveAllowedHostnames(this.creds.domain) },
-      auditContext: "feishu.streaming-card.create",
     });
     if (!createRes.ok) {
       await releaseCreate();
@@ -347,7 +329,7 @@ export class FeishuStreamingSession {
     const apiBase = resolveApiBase(this.creds.domain);
     this.state.sequence += 1;
     try {
-      const { response, release } = await fetchWithSsrFGuard({
+      const { response, release } = await fetchWithResponseRelease({
         url: `${apiBase}/cardkit/v1/cards/${this.state.cardId}/elements/content/content`,
         init: {
           method: "PUT",
@@ -362,8 +344,6 @@ export class FeishuStreamingSession {
             uuid: `s_${this.state.cardId}_${this.state.sequence}`,
           }),
         },
-        policy: { allowedHostnames: resolveAllowedHostnames(this.creds.domain) },
-        auditContext: "feishu.streaming-card.update",
       });
       await release();
       if (!response.ok) {
@@ -387,7 +367,7 @@ export class FeishuStreamingSession {
     const apiBase = resolveApiBase(this.creds.domain);
     this.state.sequence += 1;
     try {
-      const { response, release } = await fetchWithSsrFGuard({
+      const { response, release } = await fetchWithResponseRelease({
         url: `${apiBase}/cardkit/v1/cards/${this.state.cardId}/elements/content`,
         init: {
           method: "PUT",
@@ -402,8 +382,6 @@ export class FeishuStreamingSession {
             uuid: `r_${this.state.cardId}_${this.state.sequence}`,
           }),
         },
-        policy: { allowedHostnames: resolveAllowedHostnames(this.creds.domain) },
-        auditContext: "feishu.streaming-card.replace",
       });
       await release();
       if (!response.ok) {
@@ -488,7 +466,7 @@ export class FeishuStreamingSession {
     }
     const apiBase = resolveApiBase(this.creds.domain);
     this.state.sequence += 1;
-    await fetchWithSsrFGuard({
+    await fetchWithResponseRelease({
       url: `${apiBase}/cardkit/v1/cards/${this.state.cardId}/elements/note/content`,
       init: {
         method: "PUT",
@@ -503,8 +481,6 @@ export class FeishuStreamingSession {
           uuid: `n_${this.state.cardId}_${this.state.sequence}`,
         }),
       },
-      policy: { allowedHostnames: resolveAllowedHostnames(this.creds.domain) },
-      auditContext: "feishu.streaming-card.note-update",
     })
       .then(async ({ release }) => {
         await release();
@@ -547,7 +523,7 @@ export class FeishuStreamingSession {
 
     // Close streaming mode
     this.state.sequence += 1;
-    await fetchWithSsrFGuard({
+    await fetchWithResponseRelease({
       url: `${apiBase}/cardkit/v1/cards/${this.state.cardId}/settings`,
       init: {
         method: "PATCH",
@@ -564,8 +540,6 @@ export class FeishuStreamingSession {
           uuid: `c_${this.state.cardId}_${this.state.sequence}`,
         }),
       },
-      policy: { allowedHostnames: resolveAllowedHostnames(this.creds.domain) },
-      auditContext: "feishu.streaming-card.close",
     })
       .then(async ({ release }) => {
         await release();
